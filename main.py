@@ -3,12 +3,12 @@ import textwrap
 import re
 from manim import *
 from manim_voiceover import VoiceoverScene
-from manim_voiceover.services.pyttsx3 import Pyttsx3Service
+from manim_voiceover.services.pyttsx3 import PyTTSX3Service
 
 class VideoScript(VoiceoverScene):
     def construct(self):
         # Set up Offline Text-to-Speech to avoid API rate limits on cloud machines
-        self.set_speech_service(Pyttsx3Service())
+        self.set_speech_service(PyTTSX3Service())
         
         chunks = [
             "Your emotions are not your friend. Let me say that again. Your emotions are not your friend. They are not some sacred inner voice guiding you toward truth and happiness. They are biological reactions designed for a world that no longer exists. A world where immediate emotional responses meant the difference between life and death.",

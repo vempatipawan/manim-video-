@@ -8,13 +8,11 @@ on:
 jobs:
   render_chunk:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -25,26 +23,28 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg libcairo2-dev libpango1.0-dev texlive texlive-latex-extra texlive-fonts-extra texlive-latex-recommended texlive-science tipa sox libsox-fmt-all espeak
+          sudo apt-get install -y ffmpeg libcairo2-dev libpango1.0-dev texlive texlive-latex-extra texlive-fonts-extra texlive-latex-recommended texlive-science tipa sox libsox-fmt-all espeak libespeak1
 
       - name: Install Python Dependencies
         run: pip install -r requirements.txt
 
-      - name: Set Chunk ID
-        run: echo "CHUNK_ID=$(printf '%02d' ${{ matrix.chunk }})" >> $GITHUB_ENV
-
-      - name: Render Chunk ${{ matrix.chunk }}
+      - name: Render Chunk 0
+        id: render
+        continue-on-error: true
         env:
-          CHUNK_INDEX: ${{ matrix.chunk }}
+          CHUNK_INDEX: 0
         run: |
-          manim -qm main.py VideoScript --format mp4 -o chunk_${{ env.CHUNK_ID }}.mp4
+          manim -qm main.py VideoScript --format mp4 -o chunk_00.mp4 > error_log.txt 2>&1
 
-      - name: Upload Chunk Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: chunk_${{ env.CHUNK_ID }}
-          path: media/videos/**/chunk_${{ env.CHUNK_ID }}.mp4
-          retention-days: 1
+      - name: Commit Log if Failed
+        if: steps.render.outcome == 'failure'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add error_log.txt
+          git commit -m "Auto-commit error log"
+          git pull --rebase origin main
+          git push
 
   stitch:
     needs: render_chunk

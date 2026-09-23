@@ -1,0 +1,76 @@
+name: Distributed Manim Render Farm
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  render_chunk:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libcairo2-dev libpango1.0-dev texlive texlive-latex-extra texlive-fonts-extra texlive-latex-recommended texlive-science tipa
+
+      - name: Install Python Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Set Chunk ID
+        run: echo "CHUNK_ID=$(printf '%02d' ${{ matrix.chunk }})" >> $GITHUB_ENV
+
+      - name: Render Chunk ${{ matrix.chunk }}
+        env:
+          CHUNK_INDEX: ${{ matrix.chunk }}
+        run: |
+          manim -qm main.py VideoScript --format mp4 -o chunk_${{ env.CHUNK_ID }}.mp4
+
+      - name: Upload Chunk Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chunk_${{ env.CHUNK_ID }}
+          path: media/videos/**/chunk_${{ env.CHUNK_ID }}.mp4
+          retention-days: 1
+
+  stitch:
+    needs: render_chunk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all chunks
+        uses: actions/download-artifact@v4
+        with:
+          path: chunks_dir
+
+      - name: Generate concat inputs.txt
+        run: |
+          > inputs.txt
+          for i in {0..9}; do
+            CHUNK_ID=$(printf "%02d" $i)
+            FILE=$(find chunks_dir/chunk_$CHUNK_ID -name "chunk_$CHUNK_ID.mp4" | head -n 1)
+            if [ -z "$FILE" ]; then echo "Error: Could not find chunk_$CHUNK_ID.mp4!"; exit 1; fi
+            echo "file '$FILE'" >> inputs.txt
+          done
+
+      - name: Stitch video chunks
+        run: ffmpeg -f concat -safe 0 -i inputs.txt -c copy final_video.mp4
+
+      - name: Upload Final Video
+        uses: actions/upload-artifact@v4
+        with:
+          name: final_video
+          path: final_video.mp4
+          retention-days: 7

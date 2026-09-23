@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -58,7 +58,7 @@ jobs:
       - name: Generate concat inputs.txt
         run: |
           > inputs.txt
-          for i in {0..9}; do
+          for i in {0..11}; do
             CHUNK_ID=$(printf "%02d" $i)
             FILE=$(find chunks_dir/chunk_$CHUNK_ID -name "chunk_$CHUNK_ID.mp4" | head -n 1)
             if [ -z "$FILE" ]; then echo "Error: Could not find chunk_$CHUNK_ID.mp4!"; exit 1; fi

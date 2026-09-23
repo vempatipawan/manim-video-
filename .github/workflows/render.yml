@@ -25,7 +25,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg libcairo2-dev libpango1.0-dev texlive texlive-latex-extra texlive-fonts-extra texlive-latex-recommended texlive-science tipa sox libsox-fmt-all
+          sudo apt-get install -y ffmpeg libcairo2-dev libpango1.0-dev texlive texlive-latex-extra texlive-fonts-extra texlive-latex-recommended texlive-science tipa sox libsox-fmt-all espeak
 
       - name: Install Python Dependencies
         run: pip install -r requirements.txt

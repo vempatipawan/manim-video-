@@ -1,9 +1,15 @@
 import os
 import textwrap
+import re
 from manim import *
+from manim_voiceover import VoiceoverScene
+from manim_voiceover.services.gtts import GTTSService
 
-class VideoScript(Scene):
+class VideoScript(VoiceoverScene):
     def construct(self):
+        # Set up Google Text-to-Speech
+        self.set_speech_service(GTTSService(lang="en", tld="com"))
+        
         chunks = [
             "Your emotions are not your friend. Let me say that again. Your emotions are not your friend. They are not some sacred inner voice guiding you toward truth and happiness. They are biological reactions designed for a world that no longer exists. A world where immediate emotional responses meant the difference between life and death.",
             "But in today's world, your emotional reactions are sabotaging your success, destroying your relationships and keeping you trapped in cycles of regret and failure. Every single day, you make decisions based on how you feel in the moment. You get triggered by a comment and fire back with something you'll regret. You feel overwhelmed and quit on your goals. You get anxious about a presentation and avoid the opportunity that could change your career.",
@@ -19,28 +25,49 @@ class VideoScript(Scene):
             "Chronic emotional reactivity literally changes your brain structure. Studies using brain imaging technology show that people who regularly lose emotional control have smaller prefrontal cortexes. This is the part of your brain responsible for rational thinking, planning, and impulse"
         ]
 
-        # Read the environment variable to know which chunk to render
         chunk_index_str = os.environ.get("CHUNK_INDEX")
         if chunk_index_str is None:
-            print("No CHUNK_INDEX found. Please run with CHUNK_INDEX environment variable set.")
-            return
-
-        chunk_index = int(chunk_index_str)
+            # Fallback for local testing
+            chunk_index = 0
+        else:
+            chunk_index = int(chunk_index_str)
+            
         if chunk_index < 0 or chunk_index >= len(chunks):
-            print(f"Invalid CHUNK_INDEX: {chunk_index}")
             return
             
         text_content = chunks[chunk_index]
         
-        # Wrap text so it fits on screen nicely
-        wrapped_text = "\n".join(textwrap.wrap(text_content, width=40))
+        # Split chunk into sentences for punchy kinetic typography
+        sentences = re.split(r'(?<=[.!?]) +', text_content)
         
-        # Create text Mobject with nice formatting
-        t = Text(wrapped_text, font="Arial", font_size=36, line_spacing=1.5, weight=BOLD)
-        t.set_color(WHITE)
-        
-        # We want the video to be roughly 30 seconds.
-        # Write animation takes 24 seconds, followed by 5 seconds of wait, and 1 second fade out.
-        self.play(Write(t), run_time=24)
-        self.wait(5)
-        self.play(FadeOut(t), run_time=1)
+        for sentence in sentences:
+            if not sentence.strip():
+                continue
+                
+            # Generate AI audio for the sentence and capture its exact spoken duration
+            with self.voiceover(text=sentence) as tracker:
+                # Format text beautifully like a graphic designer
+                wrapped = textwrap.fill(sentence, width=22)
+                
+                txt_obj = Text(wrapped, font="Arial", font_size=55, weight=BOLD, line_spacing=1.2)
+                txt_obj.set_color(WHITE)
+                
+                # Drop shadow for professional contrast
+                shadow = Text(wrapped, font="Arial", font_size=55, weight=BOLD, line_spacing=1.2)
+                shadow.set_color(BLACK).set_opacity(0.8).shift(DOWN*0.05 + RIGHT*0.05)
+                
+                group = VGroup(shadow, txt_obj)
+                group.scale(0.8)
+                
+                # Math for smooth timing based strictly on the AI voice speed
+                dur = tracker.duration
+                fade_in_time = min(0.3, dur * 0.2)
+                fade_out_time = min(0.3, dur * 0.2)
+                zoom_time = dur - fade_in_time - fade_out_time
+                
+                # 1. Slide up and fade in
+                self.play(FadeIn(group, shift=UP*0.3), run_time=fade_in_time)
+                # 2. Slow cinematic zoom-in while speaking
+                self.play(group.animate.scale(1.15), run_time=zoom_time, rate_func=linear)
+                # 3. Fade out before next sentence
+                self.play(FadeOut(group, shift=UP*0.3), run_time=fade_out_time)
